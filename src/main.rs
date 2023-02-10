@@ -38,6 +38,13 @@ fn main() {
         uniq_process("gta-solo");
     }
 
+    // parse flag --kill
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "--kill" {
+        kill("GTA5.exe");
+        return;
+    }
+
     freeze("GTA5.exe", 9);
 
     info!("Press CTRL+C to close");
@@ -91,6 +98,43 @@ fn stop(process: &Process) -> bool {
     } else {
         false
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn kill(process_name: &str) -> bool {
+    let mut system = sysinfo::System::new_all();
+
+    info!("Looking up for {} process 🔍", process_name);
+
+    let (ok_processes, failed_processes): (Vec<(&Process, bool)>, Vec<(&Process, bool)>) =
+        find_process_by_name(process_name, &mut system)
+            .into_iter()
+            .inspect(|proc| {
+                info!(
+                    "Process found for {} with pid ({})",
+                    process_name,
+                    proc.pid()
+                );
+            })
+            .map(|proc| (proc, proc.kill(Signal::Kill)))
+            .partition(|(_, kill_result)| *kill_result == true);
+
+    if ok_processes.is_empty() && failed_processes.is_empty() {
+        error!(
+            "Process {} not found. Is {} running ?",
+            process_name, process_name
+        );
+    }
+
+    if !ok_processes.is_empty() {
+        info!("Process killed successfuly !");
+    }
+
+    if !failed_processes.is_empty() {
+        error!("Failed to kill process");
+    }
+
+    ok_processes.is_empty() && failed_processes.is_empty()
 }
 
 #[cfg(not(target_os = "windows"))]
