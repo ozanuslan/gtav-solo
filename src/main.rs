@@ -41,7 +41,7 @@ fn main() {
     // parse flag --kill
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 && args[1] == "--kill" {
-        kill("GTA5.exe");
+        terminate("GTA5.exe");
         return;
     }
 
@@ -98,43 +98,6 @@ fn stop(process: &Process) -> bool {
     } else {
         false
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn kill(process_name: &str) -> bool {
-    let mut system = sysinfo::System::new_all();
-
-    info!("Looking up for {} process 🔍", process_name);
-
-    let (ok_processes, failed_processes): (Vec<(&Process, bool)>, Vec<(&Process, bool)>) =
-        find_process_by_name(process_name, &mut system)
-            .into_iter()
-            .inspect(|proc| {
-                info!(
-                    "Process found for {} with pid ({})",
-                    process_name,
-                    proc.pid()
-                );
-            })
-            .map(|proc| (proc, proc.kill(Signal::Kill)))
-            .partition(|(_, kill_result)| *kill_result == true);
-
-    if ok_processes.is_empty() && failed_processes.is_empty() {
-        error!(
-            "Process {} not found. Is {} running ?",
-            process_name, process_name
-        );
-    }
-
-    if !ok_processes.is_empty() {
-        info!("Process killed successfuly !");
-    }
-
-    if !failed_processes.is_empty() {
-        error!("Failed to kill process");
-    }
-
-    ok_processes.is_empty() && failed_processes.is_empty()
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -232,4 +195,71 @@ fn get_process_handler(pid: Pid) -> Option<HANDLE> {
     } else {
         Some(process_handler)
     }
+}
+
+#[cfg(target_os = "windows")]
+fn kill(process: &Process) -> bool {
+    use ntapi::ntpsapi::NtTerminateProcess;
+
+    if let Some(handler) = get_process_handler(process.pid()) {
+        unsafe {
+            let result: bool = NT_SUCCESS(NtTerminateProcess(handler, 0));
+            println!("result {:?}", result);
+            CloseHandle(handler);
+            result
+        }
+    } else {
+        false
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn kill(process: &Process) -> bool {
+    let pid = process.pid();
+    info!("Killing process {:?}", pid);
+    let result = process.kill(Signal::Kill);
+
+    if result {
+        info!("Process {} killed", pid);
+    } else {
+        error!("Failed to kill {}", pid);
+    }
+
+    result
+}
+
+fn terminate(process_name: &str) -> bool {
+    let mut system = sysinfo::System::new_all();
+
+    info!("Looking up for {} process 🔍", process_name);
+
+    let (ok_processes, failed_processes): (Vec<(&Process, bool)>, Vec<(&Process, bool)>) =
+        find_process_by_name(process_name, &mut system)
+            .into_iter()
+            .inspect(|proc| {
+                info!(
+                    "Process found for {} with pid ({})",
+                    process_name,
+                    proc.pid()
+                );
+            })
+            .map(|proc| (proc, kill(&proc)))
+            .partition(|(_, kill_result)| *kill_result == true);
+
+    if ok_processes.is_empty() && failed_processes.is_empty() {
+        error!(
+            "Process {} not found. Is {} running ?",
+            process_name, process_name
+        );
+    }
+
+    if !ok_processes.is_empty() {
+        info!("Process terminated successfuly !");
+    }
+
+    if !failed_processes.is_empty() {
+        error!("Failed to terminate process");
+    }
+
+    ok_processes.is_empty() && failed_processes.is_empty()
 }
