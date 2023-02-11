@@ -46,9 +46,6 @@ fn main() {
     }
 
     freeze("GTA5.exe", 9);
-
-    info!("Press CTRL+C to close");
-    loop {}
 }
 
 fn find_process_by_name<'a>(proc_name: &'a str, system: &'a mut System) -> Vec<&'a Process> {
