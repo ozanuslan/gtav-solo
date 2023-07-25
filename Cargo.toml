@@ -1,6 +1,6 @@
 [package]
 name = "gtav-solo"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Eonm <eon.mathis@gmail.com>", "ozanuslan <ozanuslan@hotmail.com>"]
 edition = "2021"
 

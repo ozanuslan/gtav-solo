@@ -40,8 +40,13 @@ fn main() {
 
     // parse flag --kill
     let args: Vec<String> = std::env::args().collect();
-    if args.len() > 1 && args[1] == "--kill" {
-        terminate("GTA5.exe");
+    if args.len() > 1 {
+        if args[1] == "--kill" {
+            terminate("GTA5.exe");
+        }
+        if args[1] == "--freeze" {
+            freeze("GTA5.exe", 15);
+        }
         return;
     }
 
